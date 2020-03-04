@@ -491,7 +491,7 @@ int event_config_avoid_method(struct event_config *cfg, const char *method);
 
 /**
    A flag used to describe which features an event_base (must) provide.
-
+   用来描述event_base就是后端有什么特性的字段
    Because of OS limitations, not every Libevent backend supports every
    possible feature.  You can use this type with
    event_config_require_features() to tell Libevent to only proceed if your
@@ -511,7 +511,7 @@ enum event_method_feature {
     EV_FEATURE_FDS = 0x04,
     /** Require an event method that allows you to use EV_CLOSED to detect
      * connection close without the necessity of reading all the pending data.
-     *
+     * require 规定的意思哦
      * Methods that do support EV_CLOSED may not be able to provide support on
      * all kernel versions.
      **/
