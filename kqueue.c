@@ -73,11 +73,11 @@ extern struct event_list addqueue;
 #define NEVENT		64
 
 struct kqop {
-	struct kevent *changes;
-	int nchanges;
-	struct kevent *events;
-	int nevents;
-	int kq;
+	struct kevent *changes;//有事件发生的队列
+	int nchanges;//已添加的事件长度。
+	struct kevent *events;//监控队列
+	int nevents;//申请到的队列总长度。命名的很差。
+	int kq;// kq队列
 } kqueueop;
 
 void *kq_init	(void);
@@ -144,7 +144,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 	if (kqop->nchanges == nevents) {
 		struct kevent *newchange;
 		struct kevent *newresult;
-
+		//有事件过来，翻倍增加。
 		nevents *= 2;
 
 		newchange = realloc(kqop->changes,
@@ -154,7 +154,8 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 			return (-1);
 		}
 		kqop->changes = newchange;
-
+		//申请两个kevent。kqueue。一个kevent队列用来注册。一个kevent用来报告那些事件发生了。
+		/* 觉得还是奇怪。不担心申请到同一片吗？*/
 		newresult = realloc(kqop->events,
 				    nevents * sizeof(struct kevent));
 
@@ -170,7 +171,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 
 		kqop->nevents = nevents;
 	}
-
+	/* 压数据到最后*/
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
 	LOG_DBG((LOG_MISC, 70, "%s: fd %d %s%s",
@@ -197,11 +198,11 @@ kq_dispatch(void *arg, struct timeval *tv)
 	struct timespec ts;
 	int i, res;
 
-	TIMEVAL_TO_TIMESPEC(tv, &ts);
+	TIMEVAL_TO_TIMESPEC(tv, &ts);//将毫秒级的时间，转为纳秒级
 
 	res = kevent(kqop->kq, changes, kqop->nchanges,
 	    events, kqop->nevents, &ts);
-	kqop->nchanges = 0;
+	kqop->nchanges = 0;//这边把事件数目置0了。 todo
 	if (res == -1) {
 		if (errno != EINTR) {
 			log_error("kevent");
@@ -213,6 +214,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 
 	LOG_DBG((LOG_MISC, 80, "%s: kevent reports %d", __func__, res));
 
+	//循环处理每个事件。根据flags来判断是发生了什么事件。
 	for (i = 0; i < res; i++) {
 		int which = 0;
 
@@ -232,9 +234,9 @@ kq_dispatch(void *arg, struct timeval *tv)
 				continue;
 			return (-1);
 		}
-
+		//前面add的时候，这边传的是ev
 		ev = (struct event *)events[i].udata;
-
+		//如果是EV_READ  EV_WRITE   EV_SIGNAL事件，就会跳过。
 		if (events[i].filter == EVFILT_READ) {
 			which |= EV_READ;
 		} else if (events[i].filter == EVFILT_WRITE) {
@@ -245,7 +247,10 @@ kq_dispatch(void *arg, struct timeval *tv)
 
 		if (!which)
 			continue;
-
+		/*只处理time事件和EV_PERSIST持久事件。
+		将该事件添加到活动队列中。非信号事件只触发一次。
+		并将该事件的ev_flags置为EVLIST_ACTIVE
+		*/ 
 		if (!(ev->ev_events & EV_PERSIST)) {
 			ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 			event_del(ev);
@@ -262,27 +267,28 @@ kq_dispatch(void *arg, struct timeval *tv)
 int
 kq_add(void *arg, struct event *ev)
 {
-	struct kqop *kqop = arg;
-	struct kevent kev;
+	struct kqop *kqop = arg;//获取this指针。
+	struct kevent kev;//待添加事件
 
+	//检查是否为信号事件。
 	if (ev->ev_events & EV_SIGNAL) {
-		int nsignal = EVENT_SIGNAL(ev);
+		int nsignal = EVENT_SIGNAL(ev);//获取句柄
 
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = nsignal;
-		kev.filter = EVFILT_SIGNAL;
-		kev.flags = EV_ADD;
+		kev.ident = nsignal;//identifier for this event
+		kev.filter = EVFILT_SIGNAL;// 有很多，EVFILT_READ，EVFILT_WRITE，EVFILT_TIMER等
+		kev.flags = EV_ADD;//指定事件操作类型，比如EV_ADD，EV_ENABLE， EV_DELETE等 
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = INTPTR(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-
+		//注册信号行为。该信号函数是个空事件。可能留着以后用吧。
 		if (signal(nsignal, kq_sighandler) == SIG_ERR)
 			return (-1);
 
-		ev->ev_flags |= EVLIST_X_KQINKERNEL;
+		ev->ev_flags |= EVLIST_X_KQINKERNEL;//给libevent的event的ev_flags添加
 		return (0);
 	}
 
@@ -328,7 +334,7 @@ kq_del(void *arg, struct event *ev)
 {
 	struct kqop *kqop = arg;
 	struct kevent kev;
-
+	//检查是不是kq的事件
 	if (!(ev->ev_flags & EVLIST_X_KQINKERNEL))
 		return (0);
 
@@ -338,14 +344,14 @@ kq_del(void *arg, struct event *ev)
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = (int)signal;
 		kev.filter = EVFILT_SIGNAL;
-		kev.flags = EV_DELETE;
-		
+		kev.flags = EV_DELETE;//删除事件。
+		//删除事件，也需要传入kqueue，等待内核删除。
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-
+		//删除信号事件
 		if (signal(nsignal, SIG_DFL) == SIG_ERR)
 			return (-1);
-
+		//将信号位置0.
 		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 		return (0);
 	}
