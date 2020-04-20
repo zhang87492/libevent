@@ -114,6 +114,9 @@ int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
 int event_gotsig;		/* Set in signal handler */
 int event_gotterm;		/* Set to terminate loop */
 
+/*
+这个队列是怎么组织的，有点没看懂啊。
+*/
 /* Prototypes */
 void		event_queue_insert(struct event *, int);
 void		event_queue_remove(struct event *, int);
