@@ -72,7 +72,7 @@ struct epollop {
 	struct evepoll *fds;
 	int nfds;
 	struct epoll_event *events;
-	int nevents;
+	int nevents;//数量
 	int epfd;
 	sigset_t evsigmask;
 } epollop;
@@ -98,6 +98,20 @@ void *
 epoll_init(void)
 {
 	int epfd, nfiles = NEVENT;
+	/*
+	定义放在头文件/usr/include/bits/resource.h中
+	struct rlimit
+	{        
+   		rlim_t rlim_cur;        
+   		rlim_t rlim_max;
+	};
+	结构体中 rlim_cur是要取得或设置的资源软限制的值，rlim_max是硬限制
+	这两个值的设置有一个小的约束：
+	1） 任何进程可以将软限制改为小于或等于硬限制
+	2）任何进程都可以将硬限制降低，但普通用户降低了就无法提高，该值必须等于或大于软限制
+	3） 只有超级用户可以提高硬限制
+	一个无限的限制由常量RLIM_INFINITY指定（The value RLIM_INFINITY denotes no limit on a resource ）
+	*/
 	struct rlimit rl;
 
 	/* Disable epollueue when this environment variable is set */
@@ -105,12 +119,24 @@ epoll_init(void)
 		return (NULL);
 
 	memset(&epollop, 0, sizeof(epollop));
-
+	/*
+		RLIMIT_NOFILE,一个进程能打开的最大文件数。内核默认是1024。最大值也是1024。
+	*/
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
 	    rl.rlim_cur != RLIM_INFINITY)
 		nfiles = rl.rlim_cur;
 
 	/* Initalize the kernel queue */
+	/* 创建上限数量的文件句柄
+	创建一个epoll的句柄，size用来告诉内核这个监听的数目一共有多大。
+	这个参数不同于select()中的第一个参数，给出最大监听的fd+1的值。
+	需要注意的是，当创建好epoll句柄后，它就是会占用一个fd值，
+	在linux下如果查看/proc/进程id/fd/，是能够看到这个fd的，
+	所以在使用完epoll后，必须调用close()关闭，否则可能导致fd被耗尽。
+	*/
+	/*
+	epoll专用的文件描述符
+	*/
 
 	if ((epfd = epoll_create(nfiles)) == -1) {
 		log_error("epoll_create");
@@ -123,7 +149,7 @@ epoll_init(void)
 	epollop.events = malloc(nfiles * sizeof(struct epoll_event));
 	if (epollop.events == NULL)
 		return (NULL);
-	epollop.nevents = nfiles;
+	epollop.nevents = nfiles;//数量
 
 	epollop.fds = calloc(nfiles, sizeof(struct evepoll));
 	if (epollop.fds == NULL) {
@@ -238,6 +264,9 @@ epoll_dispatch(void *arg, struct timeval *tv)
 int
 epoll_add(void *arg, struct event *ev)
 {
+	/*
+	名字为什么取的那么像。。
+	*/
 	struct epollop *epollop = arg;
 	struct epoll_event epev;
 	struct evepoll *evep;
@@ -252,15 +281,15 @@ epoll_add(void *arg, struct event *ev)
 		if (epoll_recalc(epollop, fd) == -1)
 			return (-1);
 	}
-	evep = &epollop->fds[fd];
-	op = EPOLL_CTL_ADD;
+	evep = &epollop->fds[fd];//自定义的用于存储读事件和写事件的结构
+	op = EPOLL_CTL_ADD;//注册新的fd到epfd中；
 	events = 0;
 	if (evep->evread != NULL) {
-		events |= EPOLLIN;
-		op = EPOLL_CTL_MOD;
+		events |= EPOLLIN;//有可读数据
+		op = EPOLL_CTL_MOD;//修改已经注册的fd的监听事件；
 	}
 	if (evep->evwrite != NULL) {
-		events |= EPOLLOUT;
+		events |= EPOLLOUT;//可以写数据
 		op = EPOLL_CTL_MOD;
 	}
 
@@ -269,8 +298,8 @@ epoll_add(void *arg, struct event *ev)
 	if (ev->ev_events & EV_WRITE)
 		events |= EPOLLOUT;
 
-	epev.data.ptr = evep;
-	epev.events = events;
+	epev.data.ptr = evep;//事件标志
+	epev.events = events;//用户自定义数据，把libevent的event传进，作为自定义参数
 	if (epoll_ctl(epollop->epfd, op, ev->ev_fd, &epev) == -1)
 			return (-1);
 
