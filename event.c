@@ -114,6 +114,9 @@ int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
 int event_gotsig;		/* Set in signal handler */
 int event_gotterm;		/* Set to terminate loop */
 
+/*
+这个队列是怎么组织的，有点没看懂啊。
+*/
 /* Prototypes */
 void		event_queue_insert(struct event *, int);
 void		event_queue_remove(struct event *, int);
@@ -122,9 +125,13 @@ int		event_haveevents(void);
 static void	event_process_active(void);
 
 static RB_HEAD(event_tree, event) timetree;
-static struct event_list activequeue;
+/*
+当前的活动队列。这个是队头。。。
+*/
+static struct event_list activequeue;//活动队列
 struct event_list signalqueue;
 struct event_list eventqueue;
+
 static struct timeval event_tv;
 
 static int
@@ -165,16 +172,24 @@ event_init(void)
 	TAILQ_INIT(&activequeue);
 	TAILQ_INIT(&signalqueue);
 	
+	/*
+	按优先顺序，选择一个evbase来初始化。
+	*/
 	evbase = NULL;
 	for (i = 0; eventops[i] && !evbase; i++) {
 		evsel = eventops[i];
-
+		/*
+		可通过环境变量控制，返回NULL
+		*/
 		evbase = evsel->init();
 	}
 
 	if (evbase == NULL)
 		errx(1, "%s: no event mechanism available", __func__);
 
+	/*
+	打印后端名字
+	*/
 	if (getenv("EVENT_SHOW_METHOD")) 
 		fprintf(stderr, "libevent using: %s\n", evsel->name); 
 }
@@ -269,6 +284,10 @@ event_loop(int flags)
 			timeout_correct(&off);
 		}
 		event_tv = tv;
+		/*
+		 获取时间队列里，等待时间最少的时间，出来放入event里处理
+		 那么有多个事件咋整
+		*/
 
 		if (!(flags & EVLOOP_NONBLOCK))
 			timeout_next(&tv);
@@ -562,6 +581,9 @@ timeout_process(void)
 	gettimeofday(&now, NULL);
 
 	for (ev = RB_MIN(event_tree, &timetree); ev; ev = next) {
+		/*
+		如果现在最少的等待时间的事件，大于当前时间
+		*/
 		if (timercmp(&ev->ev_timeout, &now, >))
 			break;
 		next = RB_NEXT(event_tree, &timetree, ev);
