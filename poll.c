@@ -40,7 +40,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
-#include <poll.h>
+#include <poll.h>//poll的头文件。
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,13 +63,22 @@ extern struct event_list eventqueue;
 
 extern volatile sig_atomic_t evsignal_caught;
 
+/*
+struct pollfd {  
+ int fd;        //文件描述符  
+ short events;  //要求查询的事件掩码  
+ short revents; //返回的事件掩码  
+};  
+int poll(struct pollfd *ufds, unsigned int nfds, int timeout);  
+*/
 struct pollop {
 	int event_count;		/* Highest number alloc */
-	struct pollfd *event_set;
+	struct pollfd *event_set; /* poll的存储结构。 */
 	struct event **event_back;
-	sigset_t evsigmask;
+	sigset_t evsigmask; //每个类都需要注册信号的监管结构。
 } pop;
-
+//再看看这个博客
+//https://blog.csdn.net/zhuxiaoping54532/article/details/51701549
 void *poll_init	(void);
 int poll_add		(void *, struct event *);
 int poll_del		(void *, struct event *);
@@ -91,7 +100,7 @@ poll_init(void)
 	/* Disable kqueue when this environment variable is set */
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
-
+	/*基本上都是这样初始化结构体的。 */
 	memset(&pop, 0, sizeof(pop));
 
 	evsignal_init(&pop.evsigmask);
@@ -103,12 +112,14 @@ poll_init(void)
  * Called with the highest fd that we know about.  If it is 0, completely
  * recalculate everything.
  */
-
+/*
+结构不一样，所以不需要重新初始化句柄。
+*/
 int
 poll_recalc(void *arg, int max)
 {
 	struct pollop *pop = arg;
-
+	
 	return (evsignal_recalc(&pop->evsigmask));
 }
 
@@ -121,6 +132,10 @@ poll_dispatch(void *arg, struct timeval *tv)
 
 	count = pop->event_count;
 	nfds = 0;
+	/*
+	设置循环，读取event的事件队列。设置要监听的句柄。
+	设置监听的信号。
+	*/
 	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
 		if (nfds + 1 >= count) {
 			if (count < 32)
@@ -171,7 +186,18 @@ poll_dispatch(void *arg, struct timeval *tv)
 
 	sec = tv->tv_sec * 1000 + tv->tv_usec / 1000;
 	res = poll(pop->event_set, nfds, sec);
-
+	/*返回值:
+	>0：数组fds中准备好读、写或出错状态的那些socket描述符的总数量；
+    ==0：数组fds中没有任何socket描述符准备好读、写，或出错；此时poll超时，超时时间是timeout毫秒；
+	换句话说，如果所检测的 socket描述符上没有任何事件发生的话，那么poll()函数会阻塞timeout所指定的毫秒时间长度之后返回，
+		timeout==0，那么 poll() 函数立即返回而不阻塞，
+		timeout==INFTIM，那么poll() 函数会一直阻塞下去，直到所检测的socket描述符上的感兴趣的事件发生时才返回，
+			如果感兴趣的事件永远不发生，那么poll()就会永远阻塞下去；
+	-1：  poll函数调用失败，同时会自动设置全局变量errno；
+			如果待检测的socket描述符为负值，则对这个描述符的检测就会被忽略，
+			也就是不会对成员变量events进行检测，在events上注册的事件也会被忽略，
+			poll()函数返回的时候，会把成员变量revents设置为0，表示没有事件发生；
+	*/
 	if (evsignal_recalc(&pop->evsigmask) == -1)
 		return (-1);
 

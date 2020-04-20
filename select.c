@@ -67,12 +67,12 @@ extern struct event_list eventqueue;
 extern volatile sig_atomic_t evsignal_caught;
 
 struct selectop {
-	/* ×î´óµÄÎÄ¼ş¾ä±ú¡£*/
+	/* æœ€å¤§çš„æ–‡ä»¶å¥æŸ„ã€‚*/
 	int event_fds;		/* Highest fd in fd set */
-	int event_fdsz;		// ´æ´¢ĞÅºÅ¼¯ĞèÒªµÄ×Ö½Ú´óĞ¡¡£
-	fd_set *event_readset;/* ¶ÁĞÅºÅÊÂ¼ş¼¯ºÏ*/
-	fd_set *event_writeset;/* Ğ´ĞÅºÅÊÂ¼ş¼¯ºÏ*/
-	sigset_t evsigmask;// linux ĞÅºÅ¼¯¡£ÓÃÓÚ¼ì²âÊÇ·ñÓĞĞÅºÅ·¢ËÍ¹ıÀ´¡£
+	int event_fdsz;		// å­˜å‚¨ä¿¡å·é›†éœ€è¦çš„å­—èŠ‚å¤§å°ã€‚
+	fd_set *event_readset;/* è¯»ä¿¡å·äº‹ä»¶é›†åˆ*/
+	fd_set *event_writeset;/* å†™ä¿¡å·äº‹ä»¶é›†åˆ*/
+	sigset_t evsigmask;// linux ä¿¡å·é›†ã€‚ç”¨äºæ£€æµ‹æ˜¯å¦æœ‰ä¿¡å·å‘é€è¿‡æ¥ã€‚
 } sop;
 
 void *select_init	(void);
@@ -117,12 +117,12 @@ select_recalc(void *arg, int max)
 	struct event *ev;
 	int fdsz;
 	/*
-	ÉèÖÃevent_fdsÎª×î´óÖµ
+	è®¾ç½®event_fdsä¸ºæœ€å¤§å€¼
 	*/
 	if (sop->event_fds < max)
 		sop->event_fds = max;
 	/*
-	Èç¹ûevent_fds²»´æÔÚ£¬Ôò±éÀú¶ÓÁĞ£¬È¡×î´óÖµ¡£
+	å¦‚æœevent_fdsä¸å­˜åœ¨ï¼Œåˆ™éå†é˜Ÿåˆ—ï¼Œå–æœ€å¤§å€¼ã€‚
 	*/
 	if (!sop->event_fds) {
 		TAILQ_FOREACH(ev, &eventqueue, ev_next)
@@ -130,7 +130,7 @@ select_recalc(void *arg, int max)
 				sop->event_fds = ev->ev_fd;
 	}
 	/*
-	¼ÆËã´æ´¢event_fdsËùĞèÒªµÄÎ»Êı¡£
+	è®¡ç®—å­˜å‚¨event_fdsæ‰€éœ€è¦çš„ä½æ•°ã€‚
 	*/
 	fdsz = howmany(sop->event_fds + 1, NFDBITS) * sizeof(fd_mask);
 	if (fdsz > sop->event_fdsz) {
@@ -159,7 +159,7 @@ select_recalc(void *arg, int max)
 }
 
 /*
-ÏÂ·¢ÈÎÎñ£¬·¢ÆğÒ»´Î£¬select¡£µÈ´ıĞÅºÅ·¢ËÍ¡£
+ä¸‹å‘ä»»åŠ¡ï¼Œå‘èµ·ä¸€æ¬¡ï¼Œselectã€‚ç­‰å¾…ä¿¡å·å‘é€ã€‚
 */
 int
 select_dispatch(void *arg, struct timeval *tv)	
@@ -171,7 +171,7 @@ select_dispatch(void *arg, struct timeval *tv)
 	memset(sop->event_readset, 0, sop->event_fdsz);
 	memset(sop->event_writeset, 0, sop->event_fdsz);
 	/*
-	ÔÙ³õÊ¼»¯£¬ĞÅºÅ¼¯¡£
+	å†åˆå§‹åŒ–ï¼Œä¿¡å·é›†ã€‚
 	*/
 	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
 		if (ev->ev_events & EV_WRITE)
@@ -180,20 +180,20 @@ select_dispatch(void *arg, struct timeval *tv)
 			FD_SET(ev->ev_fd, sop->event_readset);
 	}
 	/*
-	ÏÈ×¢²áĞÅºÅ¡£
+	å…ˆæ³¨å†Œä¿¡å·ã€‚
 	*/
 	if (evsignal_deliver(&sop->evsigmask) == -1)
 		return (-1);
 	/*
-	µ÷ÓÃselectº¯Êı£¬µÈ´ıÊÂ¼ş·¢ËÍ¡£
-	tvÈç¹ûÓĞÖµ£¬Ôò³¬Ê±×Ô¶¯·µ»Ø¡£
+	è°ƒç”¨selectå‡½æ•°ï¼Œç­‰å¾…äº‹ä»¶å‘é€ã€‚
+	två¦‚æœæœ‰å€¼ï¼Œåˆ™è¶…æ—¶è‡ªåŠ¨è¿”å›ã€‚
 	*/
 	res = select(sop->event_fds + 1, sop->event_readset, 
 	    sop->event_writeset, NULL, tv);
 	/*
-	selectº¯ÊıÍêºó¡£ĞèÔÙÖØĞÂ×¢²áĞÅºÅÊÂ¼ş¡£
-	Èç¹ûselectÖĞÓĞÊÂ¼ş·¢Éú£¬ĞèÒªÔÙÖØĞÂ×¢²áÒ»±éÊÂ¼ş¡£»òÕßselectÖĞ£¬ÊÇÊÂ¼ş´¥·¢select½áÊø
-	»áµ¼ÖÂ³ÌĞòÎ´´¦Àí½ÓÏÂÀ´µÄĞÅºÅÊÂ¼ş
+	selectå‡½æ•°å®Œåã€‚éœ€å†é‡æ–°æ³¨å†Œä¿¡å·äº‹ä»¶ã€‚
+	å¦‚æœselectä¸­æœ‰äº‹ä»¶å‘ç”Ÿï¼Œéœ€è¦å†é‡æ–°æ³¨å†Œä¸€éäº‹ä»¶ã€‚æˆ–è€…selectä¸­ï¼Œæ˜¯äº‹ä»¶è§¦å‘selectç»“æŸ
+	ä¼šå¯¼è‡´ç¨‹åºæœªå¤„ç†æ¥ä¸‹æ¥çš„ä¿¡å·äº‹ä»¶
 	*/
 	if (evsignal_recalc(&sop->evsigmask) == -1)
 		return (-1);
@@ -204,7 +204,7 @@ select_dispatch(void *arg, struct timeval *tv)
 			return (-1);
 		}
 		/*
-		´¦ÀíĞÅºÅ¡£
+		å¤„ç†ä¿¡å·ã€‚
 		*/
 		evsignal_process();
 		return (0);
@@ -213,7 +213,7 @@ select_dispatch(void *arg, struct timeval *tv)
 
 	LOG_DBG((LOG_MISC, 80, "%s: select reports %d", __func__, res));
 	/*
-	¼àÌı¶ÁÊÂ¼ş£¬»òÕßĞ´ÊÂ¼ş£¬ÊÇ·ñÓĞÊÂ¼ş·¢Éú¡£
+	ç›‘å¬è¯»äº‹ä»¶ï¼Œæˆ–è€…å†™äº‹ä»¶ï¼Œæ˜¯å¦æœ‰äº‹ä»¶å‘ç”Ÿã€‚
 	*/
 	maxfd = 0;
 	for (ev = TAILQ_FIRST(&eventqueue); ev != NULL; ev = next) {
@@ -240,10 +240,10 @@ select_dispatch(void *arg, struct timeval *tv)
 }
 
 /*
-Ìí¼ÓÊÂ¼ş¡£
-Èç¹ûÖ»ÊÇselectµÄĞÅºÅÊÂ¼ş£¬¾ÍÔö¼Óµ½ĞÅºÅÊÂ¼ş¼¯Àï¡£
-Èç¹û²»ÊÇselectµÄĞÅºÅÊÂ¼ş¡£¾ÍÔö¼Ó×î´óµÄÎÄ¼şfd
-ÕâÑù£¬×ÔÈ»¾ÍÌí¼Óµ½ÁËselectµÄ¼àÌıÊÂ¼ş¼¯Àï¡£
+æ·»åŠ äº‹ä»¶ã€‚
+å¦‚æœåªæ˜¯selectçš„ä¿¡å·äº‹ä»¶ï¼Œå°±å¢åŠ åˆ°ä¿¡å·äº‹ä»¶é›†é‡Œã€‚
+å¦‚æœä¸æ˜¯selectçš„ä¿¡å·äº‹ä»¶ã€‚å°±å¢åŠ æœ€å¤§çš„æ–‡ä»¶fd
+è¿™æ ·ï¼Œè‡ªç„¶å°±æ·»åŠ åˆ°äº†selectçš„ç›‘å¬äº‹ä»¶é›†é‡Œã€‚
 */
 int
 select_add(void *arg, struct event *ev)
@@ -265,8 +265,8 @@ select_add(void *arg, struct event *ev)
 
 /*
  * Nothing to be done here.
- ÎÄ¼ş¾ä±ú£¬À©´óÁË¾ÍÃ»ÓĞÔÙËõĞ¡ÁË¡£
- É¾³ıĞÅºÅÊÂ¼ş¡£
+ æ–‡ä»¶å¥æŸ„ï¼Œæ‰©å¤§äº†å°±æ²¡æœ‰å†ç¼©å°äº†ã€‚
+ åˆ é™¤ä¿¡å·äº‹ä»¶ã€‚
  */
 int
 select_del(void *arg, struct event *ev)

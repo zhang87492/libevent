@@ -72,25 +72,30 @@ struct {								\
 #endif /* !RB_ENTRY */
 
 struct event {
+	/*
+	定义的队列元素，通过这些结构体串了起来。
+	ev_flags标志它现在是在哪个队列中。即下面三个TAILQ可用
+	*/
 	TAILQ_ENTRY (event) ev_next;
-	TAILQ_ENTRY (event) ev_active_next;
+	TAILQ_ENTRY (event) ev_active_next;//一种相当巧妙的设计？感觉有点意识？比之其他代码好像有点意识的感觉
 	TAILQ_ENTRY (event) ev_signal_next;
 	RB_ENTRY (event) ev_timeout_node;
 
 	int ev_fd;
-	short ev_events;
+	short ev_events; //标志是什么事件，写事件还是读事件
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
 
-	struct timeval ev_timeout;
+	struct timeval ev_timeout;//时间的处理时间。根据传进来的超时时间，在内部重新计算一遍。
 
 	void (*ev_callback)(int, short, void *arg);
 	void *ev_arg;
 
 	int ev_res;		/* result passed to event callback */
-	int ev_flags;
+	int ev_flags; //标志是哪个队列，活动队列，信号队列
 };
 
+/* 别致的写法*/
 #define EVENT_SIGNAL(ev)	ev->ev_fd
 #define EVENT_FD(ev)		ev->ev_fd
 
@@ -98,6 +103,11 @@ struct event {
 #undef TAILQ_ENTRY
 #undef _EVENT_DEFINED_TQENTRY
 #else
+/*
+定义event_list为双向列表
+为什么双向队列的尾指针要是二维指针。
+因为它指向了前一个元素的next指针。前一个元素的next指针是一维指针
+*/
 TAILQ_HEAD (event_list, event);
 #endif /* _EVENT_DEFINED_TQENTRY */
 #ifdef _EVENT_DEFINED_RBENTRY
@@ -107,7 +117,7 @@ TAILQ_HEAD (event_list, event);
 
 struct eventop {
 	char *name;
-	void *(*init)(void);
+	void *(*init)(void);// void * 是返回值
 	int (*add)(void *, struct event *);
 	int (*del)(void *, struct event *);
 	int (*recalc)(void *, int);
