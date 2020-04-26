@@ -37,7 +37,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
-#include <poll.h>//pollµÄÍ·ÎÄ¼ş¡£
+#include <poll.h>//pollçš„å¤´æ–‡ä»¶ã€‚
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,19 +62,19 @@ extern volatile sig_atomic_t evsignal_caught;
 
 /*
 struct pollfd {  
- int fd;        //ÎÄ¼şÃèÊö·û  
- short events;  //ÒªÇó²éÑ¯µÄÊÂ¼şÑÚÂë  
- short revents; //·µ»ØµÄÊÂ¼şÑÚÂë  
+ int fd;        //æ–‡ä»¶æè¿°ç¬¦  
+ short events;  //è¦æ±‚æŸ¥è¯¢çš„äº‹ä»¶æ©ç   
+ short revents; //è¿”å›çš„äº‹ä»¶æ©ç   
 };  
 int poll(struct pollfd *ufds, unsigned int nfds, int timeout);  
 */
 struct pollop {
 	int event_count;		/* Highest number alloc */
-	struct pollfd *event_set; /* pollµÄ´æ´¢½á¹¹¡£ */
+	struct pollfd *event_set; /* pollçš„å­˜å‚¨ç»“æ„ã€‚ */
 	struct event **event_back;
-	sigset_t evsigmask; //Ã¿¸öÀà¶¼ĞèÒª×¢²áĞÅºÅµÄ¼à¹Ü½á¹¹¡£
+	sigset_t evsigmask; //æ¯ä¸ªç±»éƒ½éœ€è¦æ³¨å†Œä¿¡å·çš„ç›‘ç®¡ç»“æ„ã€‚
 } pollop;
-//ÔÙ¿´¿´Õâ¸ö²©¿Í
+//å†çœ‹çœ‹è¿™ä¸ªåšå®¢
 //https://blog.csdn.net/zhuxiaoping54532/article/details/51701549
 void *poll_init	(void);
 int poll_add		(void *, struct event *);
@@ -97,7 +97,7 @@ poll_init(void)
 	/* Disable kqueue when this environment variable is set */
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
-	/*»ù±¾ÉÏ¶¼ÊÇÕâÑù³õÊ¼»¯½á¹¹ÌåµÄ¡£ */
+	/*åŸºæœ¬ä¸Šéƒ½æ˜¯è¿™æ ·åˆå§‹åŒ–ç»“æ„ä½“çš„ã€‚ */
 	memset(&pollop, 0, sizeof(pollop));
 
 	evsignal_init(&pollop.evsigmask);
@@ -110,7 +110,7 @@ poll_init(void)
  * recalculate everything.
  */
 /*
-½á¹¹²»Ò»Ñù£¬ËùÒÔ²»ĞèÒªÖØĞÂ³õÊ¼»¯¾ä±ú¡£
+ç»“æ„ä¸ä¸€æ ·ï¼Œæ‰€ä»¥ä¸éœ€è¦é‡æ–°åˆå§‹åŒ–å¥æŸ„ã€‚
 */
 int
 poll_recalc(void *arg, int max)
@@ -130,8 +130,8 @@ poll_dispatch(void *arg, struct timeval *tv)
 	count = pop->event_count;
 	nfds = 0;
 	/*
-	ÉèÖÃÑ­»·£¬¶ÁÈ¡eventµÄÊÂ¼ş¶ÓÁĞ¡£ÉèÖÃÒª¼àÌıµÄ¾ä±ú¡£
-	ÉèÖÃ¼àÌıµÄĞÅºÅ¡£
+	è®¾ç½®å¾ªç¯ï¼Œè¯»å–eventçš„äº‹ä»¶é˜Ÿåˆ—ã€‚è®¾ç½®è¦ç›‘å¬çš„å¥æŸ„ã€‚
+	è®¾ç½®ç›‘å¬çš„ä¿¡å·ã€‚
 	*/
 	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
 		if (nfds + 1 >= count) {
@@ -183,17 +183,17 @@ poll_dispatch(void *arg, struct timeval *tv)
 
 	sec = tv->tv_sec * 1000 + tv->tv_usec / 1000;
 	res = poll(pop->event_set, nfds, sec);
-	/*·µ»ØÖµ:
-	>0£ºÊı×éfdsÖĞ×¼±¸ºÃ¶Á¡¢Ğ´»ò³ö´í×´Ì¬µÄÄÇĞ©socketÃèÊö·ûµÄ×ÜÊıÁ¿£»
-    ==0£ºÊı×éfdsÖĞÃ»ÓĞÈÎºÎsocketÃèÊö·û×¼±¸ºÃ¶Á¡¢Ğ´£¬»ò³ö´í£»´ËÊ±poll³¬Ê±£¬³¬Ê±Ê±¼äÊÇtimeoutºÁÃë£»
-	»»¾ä»°Ëµ£¬Èç¹ûËù¼ì²âµÄ socketÃèÊö·ûÉÏÃ»ÓĞÈÎºÎÊÂ¼ş·¢ÉúµÄ»°£¬ÄÇÃ´poll()º¯Êı»á×èÈûtimeoutËùÖ¸¶¨µÄºÁÃëÊ±¼ä³¤¶ÈÖ®ºó·µ»Ø£¬
-		timeout==0£¬ÄÇÃ´ poll() º¯ÊıÁ¢¼´·µ»Ø¶ø²»×èÈû£¬
-		timeout==INFTIM£¬ÄÇÃ´poll() º¯Êı»áÒ»Ö±×èÈûÏÂÈ¥£¬Ö±µ½Ëù¼ì²âµÄsocketÃèÊö·ûÉÏµÄ¸ĞĞËÈ¤µÄÊÂ¼ş·¢ÉúÊ±²Å·µ»Ø£¬
-			Èç¹û¸ĞĞËÈ¤µÄÊÂ¼şÓÀÔ¶²»·¢Éú£¬ÄÇÃ´poll()¾Í»áÓÀÔ¶×èÈûÏÂÈ¥£»
-	-1£º  pollº¯Êıµ÷ÓÃÊ§°Ü£¬Í¬Ê±»á×Ô¶¯ÉèÖÃÈ«¾Ö±äÁ¿errno£»
-			Èç¹û´ı¼ì²âµÄsocketÃèÊö·ûÎª¸ºÖµ£¬Ôò¶ÔÕâ¸öÃèÊö·ûµÄ¼ì²â¾Í»á±»ºöÂÔ£¬
-			Ò²¾ÍÊÇ²»»á¶Ô³ÉÔ±±äÁ¿events½øĞĞ¼ì²â£¬ÔÚeventsÉÏ×¢²áµÄÊÂ¼şÒ²»á±»ºöÂÔ£¬
-			poll()º¯Êı·µ»ØµÄÊ±ºò£¬»á°Ñ³ÉÔ±±äÁ¿reventsÉèÖÃÎª0£¬±íÊ¾Ã»ÓĞÊÂ¼ş·¢Éú£»
+	/*è¿”å›å€¼:
+	>0ï¼šæ•°ç»„fdsä¸­å‡†å¤‡å¥½è¯»ã€å†™æˆ–å‡ºé”™çŠ¶æ€çš„é‚£äº›socketæè¿°ç¬¦çš„æ€»æ•°é‡ï¼›
+    ==0ï¼šæ•°ç»„fdsä¸­æ²¡æœ‰ä»»ä½•socketæè¿°ç¬¦å‡†å¤‡å¥½è¯»ã€å†™ï¼Œæˆ–å‡ºé”™ï¼›æ­¤æ—¶pollè¶…æ—¶ï¼Œè¶…æ—¶æ—¶é—´æ˜¯timeoutæ¯«ç§’ï¼›
+	æ¢å¥è¯è¯´ï¼Œå¦‚æœæ‰€æ£€æµ‹çš„ socketæè¿°ç¬¦ä¸Šæ²¡æœ‰ä»»ä½•äº‹ä»¶å‘ç”Ÿçš„è¯ï¼Œé‚£ä¹ˆpoll()å‡½æ•°ä¼šé˜»å¡timeoutæ‰€æŒ‡å®šçš„æ¯«ç§’æ—¶é—´é•¿åº¦ä¹‹åè¿”å›ï¼Œ
+		timeout==0ï¼Œé‚£ä¹ˆ poll() å‡½æ•°ç«‹å³è¿”å›è€Œä¸é˜»å¡ï¼Œ
+		timeout==INFTIMï¼Œé‚£ä¹ˆpoll() å‡½æ•°ä¼šä¸€ç›´é˜»å¡ä¸‹å»ï¼Œç›´åˆ°æ‰€æ£€æµ‹çš„socketæè¿°ç¬¦ä¸Šçš„æ„Ÿå…´è¶£çš„äº‹ä»¶å‘ç”Ÿæ—¶æ‰è¿”å›ï¼Œ
+			å¦‚æœæ„Ÿå…´è¶£çš„äº‹ä»¶æ°¸è¿œä¸å‘ç”Ÿï¼Œé‚£ä¹ˆpoll()å°±ä¼šæ°¸è¿œé˜»å¡ä¸‹å»ï¼›
+	-1ï¼š  pollå‡½æ•°è°ƒç”¨å¤±è´¥ï¼ŒåŒæ—¶ä¼šè‡ªåŠ¨è®¾ç½®å…¨å±€å˜é‡errnoï¼›
+			å¦‚æœå¾…æ£€æµ‹çš„socketæè¿°ç¬¦ä¸ºè´Ÿå€¼ï¼Œåˆ™å¯¹è¿™ä¸ªæè¿°ç¬¦çš„æ£€æµ‹å°±ä¼šè¢«å¿½ç•¥ï¼Œ
+			ä¹Ÿå°±æ˜¯ä¸ä¼šå¯¹æˆå‘˜å˜é‡eventsè¿›è¡Œæ£€æµ‹ï¼Œåœ¨eventsä¸Šæ³¨å†Œçš„äº‹ä»¶ä¹Ÿä¼šè¢«å¿½ç•¥ï¼Œ
+			poll()å‡½æ•°è¿”å›çš„æ—¶å€™ï¼Œä¼šæŠŠæˆå‘˜å˜é‡reventsè®¾ç½®ä¸º0ï¼Œè¡¨ç¤ºæ²¡æœ‰äº‹ä»¶å‘ç”Ÿï¼›
 	*/
 	if (evsignal_recalc(&pop->evsigmask) == -1)
 		return (-1);
@@ -218,7 +218,9 @@ poll_dispatch(void *arg, struct timeval *tv)
                 int what = pop->event_set[i].revents;
 		
 		res = 0;
-
+		/*
+		æ–‡ä»¶ä¸æ­£å¸¸å…³é—­æ—¶ï¼Œä¹Ÿéœ€è¦å¤„ç†ã€‚
+		*/
 		/* If the file gets closed notify */
 		if (what & POLLHUP)
 			what |= POLLIN|POLLOUT;
