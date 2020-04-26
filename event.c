@@ -95,9 +95,6 @@ void *evbase;
 int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
 int event_gotsig;		/* Set in signal handler */
 
-/*
-这个队列是怎么组织的，有点没看懂啊。
-*/
 /* Prototypes */
 void	event_queue_insert(struct event *, int);
 void	event_queue_remove(struct event *, int);
@@ -167,7 +164,9 @@ event_init(void)
 	log_debug_cmd(LOG_MISC, 80);
 #endif
 }
-
+/*
+检查这三个队列和红黑树看看有事件发生吗？
+*/
 int
 event_haveevents(void)
 {
@@ -338,7 +337,10 @@ event_add(struct event *ev, struct timeval *tv)
 			 * event in a loop
 			 */
 			if (ev->ev_ncalls && ev->ev_pncalls) {
-				/* Abort loop */
+				/* Abort loop
+					前面将ncalls的地址赋值给了pncalls。
+					这边直接置0。如果前面已经开始循环，就会退出循环。
+				*/
 				*ev->ev_pncalls = 0;
 			}
 			
@@ -416,6 +418,10 @@ event_active(struct event *ev, int res, short ncalls)
 	event_queue_insert(ev, EVLIST_ACTIVE);
 }
 
+/*
+下一个事件要等待多少秒钟
+如果没有时间事件，则默认等待5秒
+*/
 int
 timeout_next(struct timeval *tv)
 {
@@ -465,7 +471,8 @@ timeout_process(void)
 
 	for (ev = RB_MIN(event_tree, &timetree); ev; ev = next) {
 		/*
-		如果现在最少的等待时间的事件，大于当前时间
+		如果现在最少的等待时间的事件，大于当前时间。
+		则说明没有事件发生。退出。
 		*/
 		if (timercmp(&ev->ev_timeout, &now, >))
 			break;
@@ -492,7 +499,7 @@ timeout_insert(struct event *ev)
 	if (tmp != NULL) {
 		struct timeval tv;
 		struct timeval add = {0,1};
-
+		/* 时间是key值，不能同样。所以需要每次加1，来不一样的目的。*/
 		/* Find unique time */
 		tv = ev->ev_timeout;
 		do {
