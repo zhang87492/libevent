@@ -73,11 +73,11 @@ extern struct event_list addqueue;
 #define NEVENT		64
 
 struct kqop {
-	struct kevent *changes;//ÓĞÊÂ¼ş·¢ÉúµÄ¶ÓÁĞ
-	int nchanges;//ÒÑÌí¼ÓµÄÊÂ¼ş³¤¶È¡£
-	struct kevent *events;//¼à¿Ø¶ÓÁĞ
-	int nevents;//ÉêÇëµ½µÄ¶ÓÁĞ×Ü³¤¶È¡£ÃüÃûµÄºÜ²î¡£
-	int kq;// kq¶ÓÁĞ
+	struct kevent *changes;//æœ‰äº‹ä»¶å‘ç”Ÿçš„é˜Ÿåˆ—
+	int nchanges;//å·²æ·»åŠ çš„äº‹ä»¶é•¿åº¦ã€‚
+	struct kevent *events;//ç›‘æ§é˜Ÿåˆ—
+	int nevents;//ç”³è¯·åˆ°çš„é˜Ÿåˆ—æ€»é•¿åº¦ã€‚å‘½åçš„å¾ˆå·®ã€‚
+	int kq;// kqé˜Ÿåˆ—
 } kqueueop;
 
 void *kq_init	(void);
@@ -144,7 +144,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 	if (kqop->nchanges == nevents) {
 		struct kevent *newchange;
 		struct kevent *newresult;
-		//ÓĞÊÂ¼ş¹ıÀ´£¬·­±¶Ôö¼Ó¡£
+		//æœ‰äº‹ä»¶è¿‡æ¥ï¼Œç¿»å€å¢åŠ ã€‚
 		nevents *= 2;
 
 		newchange = realloc(kqop->changes,
@@ -154,8 +154,8 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 			return (-1);
 		}
 		kqop->changes = newchange;
-		//ÉêÇëÁ½¸ökevent¡£kqueue¡£Ò»¸ökevent¶ÓÁĞÓÃÀ´×¢²á¡£Ò»¸ökeventÓÃÀ´±¨¸æÄÇĞ©ÊÂ¼ş·¢ÉúÁË¡£
-		/* ¾õµÃ»¹ÊÇÆæ¹Ö¡£²»µ£ĞÄÉêÇëµ½Í¬Ò»Æ¬Âğ£¿*/
+		//ç”³è¯·ä¸¤ä¸ªkeventã€‚kqueueã€‚ä¸€ä¸ªkeventé˜Ÿåˆ—ç”¨æ¥æ³¨å†Œã€‚ä¸€ä¸ªkeventç”¨æ¥æŠ¥å‘Šé‚£äº›äº‹ä»¶å‘ç”Ÿäº†ã€‚
+		/* è§‰å¾—è¿˜æ˜¯å¥‡æ€ªã€‚ä¸æ‹…å¿ƒç”³è¯·åˆ°åŒä¸€ç‰‡å—ï¼Ÿ*/
 		newresult = realloc(kqop->events,
 				    nevents * sizeof(struct kevent));
 
@@ -171,7 +171,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 
 		kqop->nevents = nevents;
 	}
-	/* Ñ¹Êı¾İµ½×îºó*/
+	/* å‹æ•°æ®åˆ°æœ€å*/
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
 	LOG_DBG((LOG_MISC, 70, "%s: fd %d %s%s",
@@ -198,11 +198,11 @@ kq_dispatch(void *arg, struct timeval *tv)
 	struct timespec ts;
 	int i, res;
 
-	TIMEVAL_TO_TIMESPEC(tv, &ts);//½«ºÁÃë¼¶µÄÊ±¼ä£¬×ªÎªÄÉÃë¼¶
+	TIMEVAL_TO_TIMESPEC(tv, &ts);//å°†æ¯«ç§’çº§çš„æ—¶é—´ï¼Œè½¬ä¸ºçº³ç§’çº§
 
 	res = kevent(kqop->kq, changes, kqop->nchanges,
 	    events, kqop->nevents, &ts);
-	kqop->nchanges = 0;//Õâ±ß°ÑÊÂ¼şÊıÄ¿ÖÃ0ÁË¡£ todo
+	kqop->nchanges = 0;//è¿™è¾¹æŠŠäº‹ä»¶æ•°ç›®ç½®0äº†ã€‚ todo
 	if (res == -1) {
 		if (errno != EINTR) {
 			log_error("kevent");
@@ -214,7 +214,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 
 	LOG_DBG((LOG_MISC, 80, "%s: kevent reports %d", __func__, res));
 
-	//Ñ­»·´¦ÀíÃ¿¸öÊÂ¼ş¡£¸ù¾İflagsÀ´ÅĞ¶ÏÊÇ·¢ÉúÁËÊ²Ã´ÊÂ¼ş¡£
+	//å¾ªç¯å¤„ç†æ¯ä¸ªäº‹ä»¶ã€‚æ ¹æ®flagsæ¥åˆ¤æ–­æ˜¯å‘ç”Ÿäº†ä»€ä¹ˆäº‹ä»¶ã€‚
 	for (i = 0; i < res; i++) {
 		int which = 0;
 
@@ -234,9 +234,9 @@ kq_dispatch(void *arg, struct timeval *tv)
 				continue;
 			return (-1);
 		}
-		//Ç°ÃæaddµÄÊ±ºò£¬Õâ±ß´«µÄÊÇev
+		//å‰é¢addçš„æ—¶å€™ï¼Œè¿™è¾¹ä¼ çš„æ˜¯ev
 		ev = (struct event *)events[i].udata;
-		//Èç¹ûÊÇEV_READ  EV_WRITE   EV_SIGNALÊÂ¼ş£¬¾Í»áÌø¹ı¡£
+		//å¦‚æœæ˜¯EV_READ  EV_WRITE   EV_SIGNALäº‹ä»¶ï¼Œå°±ä¼šè·³è¿‡ã€‚
 		if (events[i].filter == EVFILT_READ) {
 			which |= EV_READ;
 		} else if (events[i].filter == EVFILT_WRITE) {
@@ -247,9 +247,9 @@ kq_dispatch(void *arg, struct timeval *tv)
 
 		if (!which)
 			continue;
-		/*Ö»´¦ÀítimeÊÂ¼şºÍEV_PERSIST³Ö¾ÃÊÂ¼ş¡£
-		½«¸ÃÊÂ¼şÌí¼Óµ½»î¶¯¶ÓÁĞÖĞ¡£·ÇĞÅºÅÊÂ¼şÖ»´¥·¢Ò»´Î¡£
-		²¢½«¸ÃÊÂ¼şµÄev_flagsÖÃÎªEVLIST_ACTIVE
+		/*åªå¤„ç†timeäº‹ä»¶å’ŒEV_PERSISTæŒä¹…äº‹ä»¶ã€‚
+		å°†è¯¥äº‹ä»¶æ·»åŠ åˆ°æ´»åŠ¨é˜Ÿåˆ—ä¸­ã€‚éä¿¡å·äº‹ä»¶åªè§¦å‘ä¸€æ¬¡ã€‚
+		å¹¶å°†è¯¥äº‹ä»¶çš„ev_flagsç½®ä¸ºEVLIST_ACTIVE
 		*/ 
 		if (!(ev->ev_events & EV_PERSIST)) {
 			ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
@@ -267,28 +267,28 @@ kq_dispatch(void *arg, struct timeval *tv)
 int
 kq_add(void *arg, struct event *ev)
 {
-	struct kqop *kqop = arg;//»ñÈ¡thisÖ¸Õë¡£
-	struct kevent kev;//´ıÌí¼ÓÊÂ¼ş
+	struct kqop *kqop = arg;//è·å–thisæŒ‡é’ˆã€‚
+	struct kevent kev;//å¾…æ·»åŠ äº‹ä»¶
 
-	//¼ì²éÊÇ·ñÎªĞÅºÅÊÂ¼ş¡£
+	//æ£€æŸ¥æ˜¯å¦ä¸ºä¿¡å·äº‹ä»¶ã€‚
 	if (ev->ev_events & EV_SIGNAL) {
-		int nsignal = EVENT_SIGNAL(ev);//»ñÈ¡¾ä±ú
+		int nsignal = EVENT_SIGNAL(ev);//è·å–å¥æŸ„
 
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = nsignal;//identifier for this event
-		kev.filter = EVFILT_SIGNAL;// ÓĞºÜ¶à£¬EVFILT_READ£¬EVFILT_WRITE£¬EVFILT_TIMERµÈ
-		kev.flags = EV_ADD;//Ö¸¶¨ÊÂ¼ş²Ù×÷ÀàĞÍ£¬±ÈÈçEV_ADD£¬EV_ENABLE£¬ EV_DELETEµÈ 
+		kev.filter = EVFILT_SIGNAL;// æœ‰å¾ˆå¤šï¼ŒEVFILT_READï¼ŒEVFILT_WRITEï¼ŒEVFILT_TIMERç­‰
+		kev.flags = EV_ADD;//æŒ‡å®šäº‹ä»¶æ“ä½œç±»å‹ï¼Œæ¯”å¦‚EV_ADDï¼ŒEV_ENABLEï¼Œ EV_DELETEç­‰ 
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = INTPTR(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-		//×¢²áĞÅºÅĞĞÎª¡£¸ÃĞÅºÅº¯ÊıÊÇ¸ö¿ÕÊÂ¼ş¡£¿ÉÄÜÁô×ÅÒÔºóÓÃ°É¡£
+		//æ³¨å†Œä¿¡å·è¡Œä¸ºã€‚è¯¥ä¿¡å·å‡½æ•°æ˜¯ä¸ªç©ºäº‹ä»¶ã€‚å¯èƒ½ç•™ç€ä»¥åç”¨å§ã€‚
 		if (signal(nsignal, kq_sighandler) == SIG_ERR)
 			return (-1);
 
-		ev->ev_flags |= EVLIST_X_KQINKERNEL;//¸ølibeventµÄeventµÄev_flagsÌí¼Ó
+		ev->ev_flags |= EVLIST_X_KQINKERNEL;//ç»™libeventçš„eventçš„ev_flagsæ·»åŠ 
 		return (0);
 	}
 
@@ -297,6 +297,10 @@ kq_add(void *arg, struct event *ev)
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_READ;
 #ifdef NOTE_EOF
+		/*
+		kev.fflags = NOTE_EOFæ˜¯ä¸ºäº†ä¸select/pollçš„æ¨¡å¼å…¼å®¹ï¼Œåœ¨è¯»åˆ°eofçš„æ—¶å€™æ¿€æ´»äº‹ä»¶ï¼Œå¯¹äºsocket
+               è€Œè¨€ï¼Œå°±æ˜¯åœ¨è¯»å®Œäº†ç¼“å†²åŒºçš„å†…å®¹ï¼Œå¹¶ä¸”å¯¹æ–¹å·²ç»å…³é—­äº†å†™ç«¯åä¼šæ¿€æ´»äº‹ä»¶
+		*/
 		/* Make it behave like select() and poll() */
 		kev.fflags = NOTE_EOF;
 #endif
@@ -334,7 +338,7 @@ kq_del(void *arg, struct event *ev)
 {
 	struct kqop *kqop = arg;
 	struct kevent kev;
-	//¼ì²éÊÇ²»ÊÇkqµÄÊÂ¼ş
+	//æ£€æŸ¥æ˜¯ä¸æ˜¯kqçš„äº‹ä»¶
 	if (!(ev->ev_flags & EVLIST_X_KQINKERNEL))
 		return (0);
 
@@ -344,14 +348,14 @@ kq_del(void *arg, struct event *ev)
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = (int)signal;
 		kev.filter = EVFILT_SIGNAL;
-		kev.flags = EV_DELETE;//É¾³ıÊÂ¼ş¡£
-		//É¾³ıÊÂ¼ş£¬Ò²ĞèÒª´«Èëkqueue£¬µÈ´ıÄÚºËÉ¾³ı¡£
+		kev.flags = EV_DELETE;//åˆ é™¤äº‹ä»¶ã€‚
+		//åˆ é™¤äº‹ä»¶ï¼Œä¹Ÿéœ€è¦ä¼ å…¥kqueueï¼Œç­‰å¾…å†…æ ¸åˆ é™¤ã€‚
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-		//É¾³ıĞÅºÅÊÂ¼ş
+		//åˆ é™¤ä¿¡å·äº‹ä»¶
 		if (signal(nsignal, SIG_DFL) == SIG_ERR)
 			return (-1);
-		//½«ĞÅºÅÎ»ÖÃ0.
+		//å°†ä¿¡å·ä½ç½®0.
 		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 		return (0);
 	}

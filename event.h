@@ -73,11 +73,11 @@ struct {								\
 
 struct event {
 	/*
-	¶¨ÒåµÄ¶ÓÁĞÔªËØ£¬Í¨¹ıÕâĞ©½á¹¹Ìå´®ÁËÆğÀ´¡£
-	ev_flags±êÖ¾ËüÏÖÔÚÊÇÔÚÄÄ¸ö¶ÓÁĞÖĞ¡£¼´ÏÂÃæÈı¸öTAILQ¿ÉÓÃ
+	å®šä¹‰çš„é˜Ÿåˆ—å…ƒç´ ï¼Œé€šè¿‡è¿™äº›ç»“æ„ä½“ä¸²äº†èµ·æ¥ã€‚
+	ev_flagsæ ‡å¿—å®ƒç°åœ¨æ˜¯åœ¨å“ªä¸ªé˜Ÿåˆ—ä¸­ã€‚å³ä¸‹é¢ä¸‰ä¸ªTAILQå¯ç”¨
 	*/
 	TAILQ_ENTRY (event) ev_next;
-	TAILQ_ENTRY (event) ev_active_next;//Ò»ÖÖÏàµ±ÇÉÃîµÄÉè¼Æ£¿¸Ğ¾õÓĞµãÒâÊ¶£¿±ÈÖ®ÆäËû´úÂëºÃÏñÓĞµãÒâÊ¶µÄ¸Ğ¾õ
+	TAILQ_ENTRY (event) ev_active_next;//ä¸€ç§ç›¸å½“å·§å¦™çš„è®¾è®¡ï¼Ÿæ„Ÿè§‰æœ‰ç‚¹æ„è¯†ï¼Ÿæ¯”ä¹‹å…¶ä»–ä»£ç å¥½åƒæœ‰ç‚¹æ„è¯†çš„æ„Ÿè§‰
 	TAILQ_ENTRY (event) ev_signal_next;
 	RB_ENTRY (event) ev_timeout_node;
 
@@ -87,20 +87,20 @@ struct event {
 #else
 	int ev_fd;
 #endif
-	short ev_events; //±êÖ¾ÊÇÊ²Ã´ÊÂ¼ş£¬Ğ´ÊÂ¼ş»¹ÊÇ¶ÁÊÂ¼ş
+	short ev_events; //æ ‡å¿—æ˜¯ä»€ä¹ˆäº‹ä»¶ï¼Œå†™äº‹ä»¶è¿˜æ˜¯è¯»äº‹ä»¶
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
 
-	struct timeval ev_timeout;//Ê±¼äµÄ´¦ÀíÊ±¼ä¡£¸ù¾İ´«½øÀ´µÄ³¬Ê±Ê±¼ä£¬ÔÚÄÚ²¿ÖØĞÂ¼ÆËãÒ»±é¡£
+	struct timeval ev_timeout;//æ—¶é—´çš„å¤„ç†æ—¶é—´ã€‚æ ¹æ®ä¼ è¿›æ¥çš„è¶…æ—¶æ—¶é—´ï¼Œåœ¨å†…éƒ¨é‡æ–°è®¡ç®—ä¸€éã€‚
 
 	void (*ev_callback)(int, short, void *arg);
 	void *ev_arg;
-
+	/* æ ‡å¿—äº‹ä»¶ç»“æœã€‚å†™äº‹ä»¶è¿˜æ˜¯è¯»äº‹ä»¶ï¼Œè¶…æ—¶äº‹ä»¶*/
 	int ev_res;		/* result passed to event callback */
-	int ev_flags; //±êÖ¾ÊÇÄÄ¸ö¶ÓÁĞ£¬»î¶¯¶ÓÁĞ£¬ĞÅºÅ¶ÓÁĞ
+	int ev_flags; //æ ‡å¿—æ˜¯å“ªä¸ªé˜Ÿåˆ—ï¼Œæ´»åŠ¨é˜Ÿåˆ—ï¼Œä¿¡å·é˜Ÿåˆ—
 };
 
-/* ±ğÖÂµÄĞ´·¨*/
+/* åˆ«è‡´çš„å†™æ³•*/
 #define EVENT_SIGNAL(ev)	(int)ev->ev_fd
 #define EVENT_FD(ev)		(int)ev->ev_fd
 
@@ -109,9 +109,9 @@ struct event {
 #undef _EVENT_DEFINED_TQENTRY
 #else
 /*
-¶¨Òåevent_listÎªË«ÏòÁĞ±í
-ÎªÊ²Ã´Ë«Ïò¶ÓÁĞµÄÎ²Ö¸ÕëÒªÊÇ¶şÎ¬Ö¸Õë¡£
-ÒòÎªËüÖ¸ÏòÁËÇ°Ò»¸öÔªËØµÄnextÖ¸Õë¡£Ç°Ò»¸öÔªËØµÄnextÖ¸ÕëÊÇÒ»Î¬Ö¸Õë
+å®šä¹‰event_listä¸ºåŒå‘åˆ—è¡¨
+ä¸ºä»€ä¹ˆåŒå‘é˜Ÿåˆ—çš„å°¾æŒ‡é’ˆè¦æ˜¯äºŒç»´æŒ‡é’ˆã€‚
+å› ä¸ºå®ƒæŒ‡å‘äº†å‰ä¸€ä¸ªå…ƒç´ çš„nextæŒ‡é’ˆã€‚å‰ä¸€ä¸ªå…ƒç´ çš„nextæŒ‡é’ˆæ˜¯ä¸€ç»´æŒ‡é’ˆ
 */
 TAILQ_HEAD (event_list, event);
 #endif /* _EVENT_DEFINED_TQENTRY */
@@ -122,7 +122,7 @@ TAILQ_HEAD (event_list, event);
 
 struct eventop {
 	char *name;
-	void *(*init)(void);// void * ÊÇ·µ»ØÖµ
+	void *(*init)(void);// void * æ˜¯è¿”å›å€¼
 	int (*add)(void *, struct event *);
 	int (*del)(void *, struct event *);
 	int (*recalc)(void *, int);
