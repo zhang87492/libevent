@@ -36,7 +36,7 @@ extern "C" {
 #endif
 
 #define EVLIST_TIMEOUT	0x01
-#define EVLIST_INSERTED	0x02
+#define EVLIST_INSERTED	0x02 # 读写事件
 #define EVLIST_SIGNAL	0x04
 #define EVLIST_ACTIVE	0x08
 #define EVLIST_INIT	0x80
@@ -88,6 +88,7 @@ struct event {
 #endif
 	short ev_events; //标志是什么事件，写事件还是读事件
 	short ev_ncalls;
+	/* 该值指向ev_ncalls的地址。这样设计感觉有点奇怪啊。 */
 	short *ev_pncalls;	/* Allows deletes in callback */
 
 	struct timeval ev_timeout;//时间的处理时间。根据传进来的超时时间，在内部重新计算一遍。
@@ -95,6 +96,7 @@ struct event {
 	void (*ev_callback)(int, short, void *arg);
 	void *ev_arg;
 	/* 标志事件结果。写事件还是读事件，超时事件*/
+	//标志着是什么事件发生，信号还是超时等等。
 	int ev_res;		/* result passed to event callback */
 	int ev_flags; //标志是哪个队列，活动队列，信号队列
 };
