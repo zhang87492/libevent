@@ -209,8 +209,11 @@ struct event_watermark {
 	size_t high;
 };
 
+/*
+读写buff的事件
+*/
 struct bufferevent {
-	struct event ev_read;
+	struct event ev_read;//这边怎么不是用*号，为什么不用*号。为什么声明为成员变量，非指针
 	struct event ev_write;
 
 	struct evbuffer *input;

@@ -356,6 +356,7 @@ event_once(int fd, short events,
 
 	if (events == EV_TIMEOUT) {
 		if (tv == NULL) {
+			//返回一个空时间
 			timerclear(&etv);
 			tv = &etv;
 		}
