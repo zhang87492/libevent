@@ -83,6 +83,9 @@ evbuffer_free(struct evbuffer *buffer)
 int
 evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 {
+	/*
+	两个buffer相加。
+	*/
 	int res;
 
 	/* Short cut for better performance */
@@ -99,6 +102,8 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		 * Optimization comes with a price; we need to notify the
 		 * buffer if necessary of the changes. oldoff is the amount
 		 * of data that we tranfered from inbuf to outbuf
+		 * oldoff是数据的数量。从inbuf到outbuf的长度。
+		 * 第一个长度是原本的，第二个长度是变化后的。
 		 */
 		if (inbuf->off != oldoff && inbuf->cb != NULL)
 			(*inbuf->cb)(inbuf, oldoff, inbuf->off, inbuf->cbarg);
@@ -109,6 +114,7 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	}
 
 	res = evbuffer_add(outbuf, inbuf->buffer, inbuf->off);
+	/* 添加成功，把inbuf里的内容清空掉。*/
 	if (res == 0)
 		evbuffer_drain(inbuf, inbuf->off);
 
@@ -164,7 +170,7 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
 	return (nread);
 }
 
-/* Adds data to an event buffer */
+/* Adds data to an event buffer.数据对齐 */
 
 static __inline void
 evbuffer_align(struct evbuffer *buf)
@@ -177,10 +183,12 @@ evbuffer_align(struct evbuffer *buf)
 int
 evbuffer_add(struct evbuffer *buf, void *data, size_t datlen)
 {
+	//要被添加的buf。这次需要的空间大小值。要加上原本已经使用的空间
 	size_t need = buf->misalign + buf->off + datlen;
 	size_t oldoff = buf->off;
-
+	/* 需要进行空间扩展 */
 	if (buf->totallen < need) {
+		/* 已用空间大于要使用的空间，则进行对齐。 */
 		if (buf->misalign >= datlen) {
 			evbuffer_align(buf);
 		} else {
@@ -238,6 +246,10 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 int
 evbuffer_read(struct evbuffer *buffer, int fd, int howmuch)
 {
+	/*
+	从文件读取，读取指定howmuch数量。
+	最多读4096个，4k
+	*/
 	u_char inbuf[4096];
 	int n;
 #ifdef WIN32
@@ -300,7 +312,9 @@ evbuffer_find(struct evbuffer *buffer, u_char *what, size_t len)
 	size_t remain = buffer->off;
 	u_char *search = buffer->buffer;
 	u_char *p;
-
+	/*
+	在参数 search 所指向的字符串的前 n 个字节中搜索第一次出现字符 *what（一个无符号字符）的位置。
+	*/
 	while ((p = memchr(search, *what, remain)) != NULL && remain >= len) {
 		if (memcmp(p, what, len) == 0)
 			return (p);

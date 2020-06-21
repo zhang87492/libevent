@@ -36,10 +36,10 @@ extern "C" {
 #endif
 
 #define EVLIST_TIMEOUT	0x01
-#define EVLIST_INSERTED	0x02 # 读写事件
+#define EVLIST_INSERTED	0x02 // 读写事件
 #define EVLIST_SIGNAL	0x04
 #define EVLIST_ACTIVE	0x08
-#define EVLIST_INTERNAL	0x10
+#define EVLIST_INTERNAL	0x10 //内部事件
 #define EVLIST_INIT	0x80
 
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
@@ -179,16 +179,21 @@ int event_pending(struct event *, short, struct timeval *);
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 #endif
 
-/* These functions deal with buffering input and output */
-
+/* 
+ * These functions deal with buffering input and output 
+ orig_buffer            buffer
+ |< -------misalign------->|<-------off------->|-------- |  
+ |< --------------- totallen --------------------------->|
+ buffer会根据使用情况持续往前跳跃。初始时buffer等于orig_buffer
+*/
 struct evbuffer {
 	u_char *buffer;
-	u_char *orig_buffer;
+	u_char *orig_buffer;//新增保留原始数据
 
-	size_t misalign;
-	size_t totallen;
-	size_t off;
-
+	size_t misalign;//这个是已经使用过了的长度.
+	size_t totallen;//这个是总长度
+	size_t off;//这个是当前已使用buffer的长度
+	/* 注册回调函数，当buffer变化时。*/
 	void (*cb)(struct evbuffer *, size_t, size_t, void *);
 	void *cbarg;
 };
@@ -255,9 +260,11 @@ int evbuffer_add(struct evbuffer *, void *, size_t);
 int evbuffer_remove(struct evbuffer *, void *, size_t);
 int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
 int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
+// 清空evbuffer里的mis_align的内容。即是对齐。
 void evbuffer_drain(struct evbuffer *, size_t);
 int evbuffer_write(struct evbuffer *, int);
 int evbuffer_read(struct evbuffer *, int, int);
+// 在evbuffer中查找字符串
 u_char *evbuffer_find(struct evbuffer *, u_char *, size_t);
 void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_t, void *), void *);
 
