@@ -107,7 +107,7 @@ const struct eventop *eventops[] = {
 
 const struct eventop *evsel;
 void *evbase;
-static int event_count;
+static int event_count;//计数现在队列有多少数据
 
 /* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
@@ -190,9 +190,7 @@ event_init(void)
 	if (getenv("EVENT_SHOW_METHOD")) 
 		fprintf(stderr, "libevent using: %s\n", evsel->name); 
 }
-/*
-检查这三个队列和红黑树看看有事件发生吗？
-*/
+
 int
 event_haveevents(void)
 {
@@ -642,7 +640,7 @@ event_queue_insert(struct event *ev, int queue)
 	if (ev->ev_flags & queue)
 		errx(1, "%s: %p(fd %d) already on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
-
+	//非内部事件都加加
 	if (!(ev->ev_flags & EVLIST_INTERNAL))
 		event_count++;
 

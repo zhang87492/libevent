@@ -233,9 +233,9 @@ struct bufferevent {
 	void *cbarg;
 
 	int timeout_read;	/* in seconds */
-	int timeout_write;	/* in seconds */
+	int timeout_write;	/* in seconds 写成功的超时时间，还是写成功用了多少时间？*/
 
-	short enabled;	/* events that are currently enabled */
+	short enabled;	/* events that are currently enabled 标志现在是什么事件可用（EV_READ。这几个事件）*/
 };
 
 struct bufferevent *bufferevent_new(int fd,

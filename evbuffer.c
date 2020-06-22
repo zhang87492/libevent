@@ -49,6 +49,9 @@
 static int
 bufferevent_add(struct event *ev, int timeout)
 {
+	/*
+	没有指定event的事件类型啊？？
+	*/
 	struct timeval tv, *ptv = NULL;
 
 	if (timeout) {
@@ -63,6 +66,12 @@ bufferevent_add(struct event *ev, int timeout)
 /* 
  * This callback is executed when the size of the input buffer changes.
  * We use it to apply back pressure on the reading side.
+ * evbuffer的长度变化时，就是那个off字段变化时，就会触发该函数。它不是一有变化，就会回调该函数。
+ * 添加，会手动调用函数，减少就让buffer里面自动触发。为什么这样设计呢？
+ * 
+ * 
+ * ？？？？？
+ * 
  */
 
 void
@@ -93,7 +102,7 @@ bufferevent_readcb(int fd, short event, void *arg)
 		what |= EVBUFFER_TIMEOUT;
 		goto error;
 	}
-
+	//读取尽可能多的数据
 	res = evbuffer_read(bufev->input, fd, -1);
 	if (res == -1) {
 		if (errno == EAGAIN || errno == EINTR)
@@ -187,7 +196,7 @@ bufferevent_writecb(int fd, short event, void *arg)
  * Create a new buffered event object.
  *
  * The read callback is invoked whenever we read new data.
- * The write callback is invoked whenever the output buffer is drained.
+ * The write callback is invoked whenever the output buffer is drained.输出buffer被耗尽。 
  * The error callback is invoked on a write/read error or on EOF.
  */
 
@@ -238,6 +247,7 @@ bufferevent_free(struct bufferevent *bufev)
 }
 
 /*
+ * 添加buffer成功，我们就安排一次bufferevent事件。写成功事件
  * Returns 0 on success;
  *        -1 on failure.
  */
@@ -271,6 +281,9 @@ bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 	return (res);
 }
 
+/*
+？没有触发时间发生啊？难道是buffer_drain里减去长度时会触发是吗？
+*/
 size_t
 bufferevent_read(struct bufferevent *bufev, void *data, size_t size)
 {
